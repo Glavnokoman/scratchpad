@@ -13,7 +13,8 @@ auto offit(T&& container, typename std::remove_reference_t<T>::difference_type o
 	return std::next(begin(std::forward<T>(container)), offset);
 }
 
-/// remove multiple indexes from a vector maintaining the order of elements
+/// Remove multiple indexes from a vector maintaining the order of elements.
+/// Lame, only here for benchmarking/testing.
 template<class T>
 auto erase_indexes_stable_(std::vector<T>& inout
                            , const std::vector<ptrdiff_t>& idx
@@ -26,7 +27,8 @@ auto erase_indexes_stable_(std::vector<T>& inout
 	}
 }
 
-/// remove multiple indexes from a vector maintaining the order of elements
+/// Remove multiple indexes from a vector maintaining the order of elements. 
+/// Lame, only here for benchmarking/testing.
 template<class T>
 auto erase_indexes_stable(std::vector<T> in
                           , const std::vector<ptrdiff_t>& idx
@@ -53,8 +55,8 @@ auto erase_sorted_indexes_stable(std::vector<T> in
 	}
 	
 	auto move_to = offit(in, idx.front());
-	for(auto dit = begin(idx); dit != end(idx); ++dit){
-		move_to = std::move( std::next(offit(in, *dit)), offit(in, std::next(dit)), move_to);
+	for(auto dit = begin(idx); dit != std::prev(end(idx)); ++dit){
+		move_to = std::move( std::next(offit(in, *dit)), offit(in, *std::next(dit)), move_to);
 	}
 	std::move(std::next(offit(in, idx.back())), end(in), move_to);
 	in.resize(in.size() - idx.size());
