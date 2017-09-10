@@ -13,4 +13,5 @@ function(add_catch_test arg_test_name arg_test_src)
 	add_test(NAME ${arg_test_name} COMMAND ${arg_test_name} )
 endfunction()
 
-add_catch_test(test_example example_t.cpp)
+add_catch_test(test_vec_erase_idx vec_erase_idx_t.cpp)
+target_link_libraries(test_vec_erase_idx PRIVATE vec_idx_erase)

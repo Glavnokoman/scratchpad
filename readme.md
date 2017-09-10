@@ -9,7 +9,7 @@ mkdir build
 cd build
 cmake /path/to/this/project/source/dir [-DCMAKE_INSTALL_PREFIX=/install/prefix/path]
 cmake --build .
-cmake --build -- install .
+cmake --build . -- install
 ```
 
 ## Dependencies
