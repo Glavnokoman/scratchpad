@@ -20,65 +20,67 @@ auto test_function()-> void {
 	SECTION("remove all"){
 		auto idx_remove = std::vector<ptrdiff_t>(vec_in.size());
 		std::iota(begin(idx_remove), end(idx_remove), 0);
+		auto vec_ref = std::vector<int>{};
 		
 		auto vec_tst = f(vec_in, idx_remove);
-		auto vec_ref = std::vector<int>{};
 		
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove first"){
 		auto idx_rm = std::vector<ptrdiff_t>{0};
+		auto vec_ref = std::vector<int>{2, 3, 4, 5, 6};
 		
 		auto vec_tst = f(vec_in, idx_rm);
-		auto vec_ref = std::vector<int>{2, 3, 4, 5, 6};
+		if(!f.is_stable()){
+			std::sort(begin(vec_tst), end(vec_tst));
+		}
 		
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove last"){
 		auto idx_rm = std::vector<ptrdiff_t>{5};
-		
-		auto vec_tst = f(vec_in, idx_rm);
 		auto vec_ref = std::vector<int>{1, 2, 3, 4, 5};
 		
+		auto vec_tst = f(vec_in, idx_rm);
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove second"){
 		auto idx_rm = std::vector<ptrdiff_t>{1};
-		
-		auto vec_tst = f(vec_in, idx_rm);
 		auto vec_ref = std::vector<int>{1, 3, 4, 5, 6};
+
+		auto vec_tst = f(vec_in, idx_rm);
+		if(!f.is_stable()){
+			std::sort(begin(vec_tst), end(vec_tst));
+		}
 		
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove one before last"){
 		auto idx_rm = std::vector<ptrdiff_t>{4};
-		auto vec_tst = f(vec_in, idx_rm);
 		auto vec_ref = std::vector<int>{1, 2, 3, 4, 6};
 		
+		auto vec_tst = f(vec_in, idx_rm);
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove all but first"){
 		auto idx_rm = std::vector<ptrdiff_t>{1, 2, 3, 4, 5};
-		
-		auto vec_tst = f(vec_in, idx_rm);
 		auto vec_ref = std::vector<int>{1};
 		
+		auto vec_tst = f(vec_in, idx_rm);
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove all but last"){
 		auto idx_rm = std::vector<ptrdiff_t>{0, 1, 2, 3, 4};
-		
-		auto vec_tst = f(vec_in, idx_rm);
 		auto vec_ref = std::vector<int>{6};
 		
+		auto vec_tst = f(vec_in, idx_rm);
 		CHECK(vec_tst == vec_ref);
 	}
 	SECTION("remove all but first and last"){
 		auto idx_rm = std::vector<ptrdiff_t>{1, 2, 3, 4};
-		
-		auto vec_tst = f(vec_in, idx_rm);
 		auto vec_ref = std::vector<int>{1, 6};
 		
+		auto vec_tst = f(vec_in, idx_rm);
 		CHECK(vec_tst == vec_ref);
 	}
 }
@@ -88,20 +90,23 @@ struct EraserStable{
 	auto operator()(std::vector<T> in, const std::vector<ptrdiff_t>& idx)-> std::vector<T> {
 		return erase_indexes_stable(in, idx);
 	}
+	auto is_stable()-> bool {return true;}
 };
 
 struct EraserStableSorted{
 	template<class T>
 	auto operator()(std::vector<T> in, const std::vector<ptrdiff_t>& idx)-> std::vector<T> {
-		return erase_sorted_indexes_stable(std::move(in), idx);
+		return erase_sorted_indexes_stable(in, idx);
 	}
+	auto is_stable()-> bool { return true; }
 };
 
 struct EraserUnstableSorted{
 	template<class T>
 	auto operator()(std::vector<T> in, const std::vector<ptrdiff_t>& idx)-> std::vector<T> {
-		return erase_sorted_indexes_unstable(std::move(in), idx);
+		return erase_sorted_indexes_unstable(in, idx);
 	}
+	auto is_stable()-> bool { return false; }
 };	
 
 

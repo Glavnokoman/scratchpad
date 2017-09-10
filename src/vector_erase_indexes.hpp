@@ -71,6 +71,9 @@ auto erase_sorted_indexes_unstable(std::vector<T> in
                                    )-> std::vector<T>
 {
 	assert(std::is_sorted(begin(idx), end(idx)));
+	if(idx.empty()){
+		return in;
+	}
 	
 	auto hr = idx.begin();  // leading index left to be removed
 	auto tt = idx.rbegin(); // last index left to be removed
