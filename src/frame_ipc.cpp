@@ -4,6 +4,8 @@
 #include <cstring>
 #include <stdexcept>
 #include <iostream>
+#include <map>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -20,18 +22,9 @@
 using namespace std;
 
 namespace{
-	enum MODE {CLIENT, SERVER};
+	enum MODE {CLIENT_SPEAK, CLIENT_LISTEN, SERVER_SPEAK, SERVER_LISTEN};
 	const size_t FRAME_SIZE = 1024;
-	
-	__attribute__ ((noreturn))
-	auto throwup(const std::string& mess){
-		throw std::runtime_error(mess + " " +  std::strerror(errno));
-	}
-	
-	auto throwup(bool c, const std::string& mess){
-		if(c){ throwup(mess); }
-	}
-	
+
 	/// Handle command line parameters
 	struct Params{
 		Params(int argc, char* argv[]): _pname(argv[0]){
@@ -40,10 +33,13 @@ namespace{
 				exit(1);
 			}
 			
-			if(strcmp(argv[1], "CLIENT") == 0){
-				_mode = MODE::CLIENT;
-			} else if(strcmp(argv[1], "SERVER") == 0){
-				_mode = MODE::SERVER;
+			auto str_modes = std::map<std::string, MODE>{
+				  {"CLIENT_SPEAK", CLIENT_SPEAK},   {"CLIENT_LISTEN", CLIENT_LISTEN}
+				, {"SERVER_LISTEN", SERVER_LISTEN}, {"SERVER_SPEAK", SERVER_SPEAK}};
+			
+			auto mode_it = str_modes.find(argv[1]);
+			if(mode_it != end(str_modes)){
+				_mode = mode_it->second;
 			} else {
 				usage();
 				exit(1);
@@ -54,7 +50,9 @@ namespace{
 		
 		auto usage() const-> void {
 			std::cout << "create client and server exchanging random data via socket" << "\n";
-			std::cout << "usage: " << _pname << " {CLIENT|SERVER} path/to/socket" << "\n";
+			std::cout << "usage: " << _pname 
+			          << " {CLIENT_SPEAK|SERVER_LISTEN|CLIENT_LISTEN|SERVER_SPEAK} "
+			             "path/to/socket" << "\n";
 		}
 		
 		auto mode() const { return _mode; }
@@ -65,30 +63,43 @@ namespace{
 		MODE _mode;            ///< execution mode
 	}; // struct Params
 	
-	/// run the client
 	__attribute__ ((noreturn))
-	auto client(const char* path){
+	auto throwup(const std::string& mess){
+		throw std::runtime_error(mess + " " +  std::strerror(errno));
+	}
+	
+	auto throwup(bool c, const std::string& mess){
+		if(c){ throwup(mess); }
+	}
+	
+	///
+	auto bind_local_udp(const char* path)-> int {
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 		throwup(s < 0, "failed create socket");
 		
+		const char* p = (path ? path : tmpnam(nullptr));
+		
 		auto local = sockaddr_un{};
 		local.sun_family = AF_LOCAL;
-		strncpy(local.sun_path, tmpnam(nullptr), sizeof(local.sun_path));
+		strncpy(local.sun_path, p, sizeof(local.sun_path));
+		unlink(local.sun_path);
 		if(bind(s, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0){
 			throwup("failed connecting socket to tmp address");
 		}
 		
-		auto remote = sockaddr_un{};
-		remote.sun_family = AF_LOCAL;
-		strncpy(remote.sun_path, path, sizeof(remote.sun_path));
-
+		return s;
+	}
+	
+	///
+	__attribute__ ((noreturn))
+	auto speak(int sck, sockaddr* remote, socklen_t size_remote){
 		auto epollfd = epoll_create1(0);
 		throwup(epollfd == -1, "epoll_create1");
 		
 		auto ev = epoll_event{};
 		ev.events = EPOLLOUT;
-		ev.data.fd = s;
-		if(epoll_ctl(epollfd, EPOLL_CTL_ADD, s, &ev) == -1){
+		ev.data.fd = sck;
+		if(epoll_ctl(epollfd, EPOLL_CTL_ADD, sck, &ev) == -1){
 			throwup("epoll_ctl: listen_sock");
 		}
 		
@@ -100,36 +111,71 @@ namespace{
 			auto nfds = epoll_wait(epollfd, epoll_events.data(), 10, 0);
 			throwup(nfds == -1, "epoll_wait");
 			if(nfds != 0){
-				sendto(s, buf.data(), buf.size()*sizeof(buf[0]), 0, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
+				sendto(sck, buf.data(), buf.size()*sizeof(buf[0]), 0, remote, size_remote);
 			}
 		}
 	}
 	
-	/// run the server. set up the socket, bind to path, receive...
+	///
 	__attribute__ ((noreturn))
-	auto server(const char* path){
-		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
-		if(s < 0){
-			throwup("failed to open socket");
-		}
-		
-		auto local = sockaddr_un{};
-		local.sun_family = AF_LOCAL;
-		strncpy(local.sun_path, path, sizeof(local.sun_path));
-		unlink(local.sun_path);
-		
-		if(bind(s, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0){
-			throwup("failed to bind server socket");
-		}
-		
+	auto listen(int sck){
 		for(;;){
-			auto buf = std::vector<uint8_t>(FRAME_SIZE); // dgs if i++ wraps around
-			if(recv(s, buf.data(), buf.size()*sizeof(buf[0]), 0) < 0) {
-				throwup("receive error: ");
+			auto buf = std::vector<uint8_t>(FRAME_SIZE);
+			if(recv(sck, buf.data(), buf.size()*sizeof(buf[0]), 0) == -1){
+				throwup("receive error");
 			}
 			std::cout << buf[0] << std::endl;
 			std::this_thread::sleep_for(1s);
+		}		
+	}
+	
+	/// run the client
+	__attribute__ ((noreturn))
+	auto client_speak(const char* path){
+		auto s = bind_local_udp(nullptr);
+		
+		auto remote = sockaddr_un{};
+		remote.sun_family = AF_LOCAL;
+		strncpy(remote.sun_path, path, sizeof(remote.sun_path));
+
+		speak(s, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
+	}
+	
+	/// run the client in receiver mode
+	__attribute__ ((noreturn))
+	auto client_listen(const char* path){
+		auto s = bind_local_udp(nullptr);
+		
+		auto remote = sockaddr_un{};
+		remote.sun_family = AF_LOCAL;
+		strncpy(remote.sun_path, path, sizeof(remote.sun_path));
+		
+		sendto(s, "hi", 3, 0, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
+		
+		listen(s);
+	}
+
+	/// run the server in receiver mode.
+	__attribute__ ((noreturn))
+	auto server_listen(const char* path){
+		auto s = bind_local_udp(path);
+		
+		listen(s);
+	}
+	
+	/// run the server in transmission mode
+	__attribute__ ((noreturn))
+	auto server_speak(const char* path){
+		auto s = bind_local_udp(path);
+		
+		auto remote = sockaddr{};
+		auto remote_len = socklen_t{};
+		auto buf = std::array<char, 3>{};
+		if(recvfrom(s, buf.data(), 3, 0, &remote, &remote_len) == -1){
+			throwup("recvfrom()");
 		}
+		
+		speak(s, &remote, remote_len);
 	}
 } // namespace
 
@@ -139,12 +185,14 @@ auto main(int argc, char* argv[]) -> int {
 
 	const auto p = Params(argc, argv);
 	switch(p.mode()){
-		case MODE::CLIENT:
-			client(p.filepath());
-			break;
-		case MODE::SERVER:
-			server(p.filepath());
-			break;
+		case MODE::CLIENT_SPEAK:
+			client_speak(p.filepath());
+		case MODE::SERVER_LISTEN:
+			server_listen(p.filepath());
+		case MODE::CLIENT_LISTEN:
+			client_listen(p.filepath());
+		case MODE::SERVER_SPEAK:
+			server_speak(p.filepath());
 	}
 
 	return 0;

@@ -67,7 +67,7 @@ namespace{
 	
 	/// run the client
 	__attribute__ ((noreturn))
-	auto client(const char* path){
+	auto client_speak(const char* path){
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 		throwup(s < 0, "failed create socket");
 		
@@ -107,7 +107,7 @@ namespace{
 	
 	/// run the server. set up the socket, bind to path, receive...
 	__attribute__ ((noreturn))
-	auto server(const char* path){
+	auto server_listen(const char* path){
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 		if(s < 0){
 			throwup("failed to open socket");
@@ -140,10 +140,10 @@ auto main(int argc, char* argv[]) -> int {
 	const auto p = Params(argc, argv);
 	switch(p.mode()){
 		case MODE::CLIENT:
-			client(p.filepath());
+			client_speak(p.filepath());
 			break;
 		case MODE::SERVER:
-			server(p.filepath());
+			server_listen(p.filepath());
 			break;
 	}
 
