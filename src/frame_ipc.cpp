@@ -73,7 +73,7 @@ namespace{
 		auto local = sockaddr_un{};
 		local.sun_family = AF_LOCAL;
 		strncpy(local.sun_path, tmpnam(nullptr), sizeof(local.sun_path));
-		if(connect(s, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0){
+		if(bind(s, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0){
 			throwup("failed connecting socket to tmp address");
 		}
 		
