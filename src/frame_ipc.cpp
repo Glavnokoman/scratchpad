@@ -67,30 +67,29 @@ namespace{
 	/// run the client
 	__attribute__ ((noreturn))
 	auto client(const char* path){
-		auto buf = std::vector<uint8_t>(FRAME_SIZE);
-		
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
-		if(s < 0){
-			throw std::runtime_error("failed to open socket");
+		throwup(s < 0, "failed create socket");
+		
+		auto local = sockaddr_un{};
+		local.sun_family = AF_LOCAL;
+		strncpy(local.sun_path, tmpnam(nullptr), sizeof(local.sun_path));
+		if(connect(s, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0){
+			throwup("failed connecting socket to tmp address");
 		}
 		
 		auto remote = sockaddr_un{};
 		remote.sun_family = AF_LOCAL;
 		strncpy(remote.sun_path, path, sizeof(remote.sun_path));
-		if(connect(s, reinterpret_cast<sockaddr*>(&remote), sizeof(remote)) < 0){
-			throw std::runtime_error(std::string("client failed to connect to ") + path);
-		}
 		
+		auto i = uint8_t(0);
 		for(;;){
-			if(recv(s, buf.data(), buf.size()*sizeof(buf[0]), 0) <= 0){
-				throw std::runtime_error("network error");
-			}
-			std::cout << buf[0] << std::endl;
-			std::this_thread::sleep_for(1s);
+			auto buf = std::vector<uint8_t>(FRAME_SIZE, i++);
+			sendto(s, buf.data(), buf.size()*sizeof(buf[0]), 0, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
+			
 		}
 	}
 	
-	/// run the server
+	/// run the server. set up the socket, bind to path, receive...
 	__attribute__ ((noreturn))
 	auto server(const char* path){
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
@@ -107,30 +106,24 @@ namespace{
 			throwup("failed to bind server socket");
 		}
 		
-		if(listen(s, 4) < 0){
-			throwup("listen()");
-		}
-		
-		auto len = socklen_t(sizeof(sockaddr_un));
-		sockaddr_un remote;
-		auto s2 = accept(s, reinterpret_cast<sockaddr*>(&remote), &len); // blocking???
-		if(s2 < 0){
-			throwup("failed to accept connection");
-		}
-		
-		auto i = uint8_t(0);
 		for(;;){
-			fd_set wfds;
-			FD_ZERO(&wfds);
-			FD_SET(s2, &wfds);
-	
-			sigset_t empty_mask;
-			sigemptyset(&empty_mask);
-			
-			auto buf = std::vector<uint8_t>(FRAME_SIZE, uint8_t(i++)); // dgs if i++ wraps around
-			if(pselect(s2 + 1, nullptr, &wfds, nullptr, nullptr, &empty_mask)) {
-				send(s2, buf.data(), buf.size()*sizeof(buf[0]), 0);
+			auto buf = std::vector<uint8_t>(FRAME_SIZE); // dgs if i++ wraps around
+			if(recv(s, buf.data(), buf.size()*sizeof(buf[0]), 0) < 0) {
+				throwup("receive error: ");
 			}
+			std::cout << buf[0] << std::endl;
+			std::this_thread::sleep_for(1s);
+
+//			fd_set wfds;
+//			FD_ZERO(&wfds);
+//			FD_SET(s, &wfds);
+	
+//			sigset_t empty_mask;
+//			sigemptyset(&empty_mask);
+			
+//			if(pselect(s + 1, nullptr, &wfds, nullptr, nullptr, &empty_mask)) {
+//				send(s, buf.data(), buf.size()*sizeof(buf[0]), 0);
+//			}
 		}
 	}
 } // namespace
