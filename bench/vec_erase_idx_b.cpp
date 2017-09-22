@@ -8,7 +8,7 @@
 
 namespace {
 
-	auto make_test_vec(size_t vec_size)-> std::vector<std::string>	{
+	auto make_test_vec(size_t vec_size)-> std::vector<std::string> {
 		auto r = std::vector<std::string>(vec_size);
 		
 		auto generator = std::mt19937(21);
