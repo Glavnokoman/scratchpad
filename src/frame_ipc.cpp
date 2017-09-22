@@ -10,6 +10,7 @@
 // posix stuff
 #include <fcntl.h>
 #include <netdb.h>
+#include <sys/epoll.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
@@ -80,12 +81,27 @@ namespace{
 		auto remote = sockaddr_un{};
 		remote.sun_family = AF_LOCAL;
 		strncpy(remote.sun_path, path, sizeof(remote.sun_path));
+
+		auto epollfd = epoll_create1(0);
+		throwup(epollfd == -1, "epoll_create1");
+		
+		auto ev = epoll_event{};
+		ev.events = EPOLLOUT;
+		ev.data.fd = s;
+		if(epoll_ctl(epollfd, EPOLL_CTL_ADD, s, &ev) == -1){
+			throwup("epoll_ctl: listen_sock");
+		}
 		
 		auto i = uint8_t(0);
 		for(;;){
 			auto buf = std::vector<uint8_t>(FRAME_SIZE, i++);
-			sendto(s, buf.data(), buf.size()*sizeof(buf[0]), 0, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
 			
+			auto epoll_events = std::array<epoll_event, 10>{};
+			auto nfds = epoll_wait(epollfd, epoll_events.data(), 10, 0);
+			throwup(nfds == -1, "epoll_wait");
+			if(nfds != 0){
+				sendto(s, buf.data(), buf.size()*sizeof(buf[0]), 0, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
+			}
 		}
 	}
 	
@@ -113,17 +129,6 @@ namespace{
 			}
 			std::cout << buf[0] << std::endl;
 			std::this_thread::sleep_for(1s);
-
-//			fd_set wfds;
-//			FD_ZERO(&wfds);
-//			FD_SET(s, &wfds);
-	
-//			sigset_t empty_mask;
-//			sigemptyset(&empty_mask);
-			
-//			if(pselect(s + 1, nullptr, &wfds, nullptr, nullptr, &empty_mask)) {
-//				send(s, buf.data(), buf.size()*sizeof(buf[0]), 0);
-//			}
 		}
 	}
 } // namespace
