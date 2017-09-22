@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cerrno>
 #include <chrono>
 #include <cstring>
 #include <stdexcept>
@@ -20,6 +21,15 @@ using namespace std;
 namespace{
 	enum MODE {CLIENT, SERVER};
 	const size_t FRAME_SIZE = 1024;
+	
+	__attribute__ ((noreturn))
+	auto throwup(const std::string& mess){
+		throw std::runtime_error(mess + " " +  std::strerror(errno));
+	}
+	
+	auto throwup(bool c, const std::string& mess){
+		if(c){ throwup(mess); }
+	}
 	
 	/// Handle command line parameters
 	struct Params{
@@ -51,7 +61,7 @@ namespace{
 		
 		const char* _pname;    ///< program name
 		const char* _filepath; ///< file path used as an interface to socket
-		MODE _mode;      ///< execution mode
+		MODE _mode;            ///< execution mode
 	}; // struct Params
 	
 	/// run the client
@@ -85,7 +95,7 @@ namespace{
 	auto server(const char* path){
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 		if(s < 0){
-			throw std::runtime_error("failed to open server socket");
+			throwup("failed to open socket");
 		}
 		
 		auto local = sockaddr_un{};
@@ -93,19 +103,19 @@ namespace{
 		strncpy(local.sun_path, path, sizeof(local.sun_path));
 		unlink(local.sun_path);
 		
-		if(bind(s, reinterpret_cast<sockaddr*>(&local), sizeof(local))){
-			throw std::runtime_error("failed to bind server socket");
+		if(bind(s, reinterpret_cast<sockaddr*>(&local), sizeof(local)) < 0){
+			throwup("failed to bind server socket");
 		}
 		
 		if(listen(s, 4) < 0){
-			throw std::runtime_error("listen...");
+			throwup("listen()");
 		}
 		
 		auto len = socklen_t(sizeof(sockaddr_un));
 		sockaddr_un remote;
 		auto s2 = accept(s, reinterpret_cast<sockaddr*>(&remote), &len); // blocking???
 		if(s2 < 0){
-			throw std::runtime_error("failed to accept connection");
+			throwup("failed to accept connection");
 		}
 		
 		auto i = uint8_t(0);
@@ -118,7 +128,7 @@ namespace{
 			sigemptyset(&empty_mask);
 			
 			auto buf = std::vector<uint8_t>(FRAME_SIZE, uint8_t(i++)); // dgs if i++ wraps around
-			if (pselect(s2 + 1, nullptr, &wfds, nullptr, nullptr, &empty_mask)) {
+			if(pselect(s2 + 1, nullptr, &wfds, nullptr, nullptr, &empty_mask)) {
 				send(s2, buf.data(), buf.size()*sizeof(buf[0]), 0);
 			}
 		}
