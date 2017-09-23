@@ -90,7 +90,7 @@ namespace{
 		return s;
 	}
 	
-	///
+	/// models fast producer. 
 	__attribute__ ((noreturn))
 	auto speak(int sck, sockaddr* remote, socklen_t size_remote){
 		auto epollfd = epoll_create1(0);
