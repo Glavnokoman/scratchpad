@@ -63,6 +63,7 @@ namespace{
 		MODE _mode;            ///< execution mode
 	}; // struct Params
 	
+	/// throw std::runtime_error with the given message and last errno description
 	__attribute__ ((noreturn))
 	auto throwup(const std::string& mess){
 		throw std::runtime_error(mess + " " +  std::strerror(errno));
@@ -72,7 +73,9 @@ namespace{
 		if(c){ throwup(mess); }
 	}
 	
-	///
+	/// Creates unix socket and binds it to a given path. 
+	/// If path is nullptr, binds to some temporary file.
+	/// @return socket descriptor
 	auto bind_local_udp(const char* path)-> int {
 		auto s = socket(AF_LOCAL, SOCK_DGRAM, 0);
 		throwup(s < 0, "failed create socket");
@@ -90,7 +93,8 @@ namespace{
 		return s;
 	}
 	
-	/// models fast producer. 
+	/// Busy produce 1kB messages. epolls on the given port and sends the last produced message 
+	/// once that becomes writable.
 	__attribute__ ((noreturn))
 	auto speak(int sck, sockaddr* remote, socklen_t size_remote){
 		auto epollfd = epoll_create1(0);
@@ -116,7 +120,8 @@ namespace{
 		}
 	}
 	
-	///
+	/// Listen to a given socket. Gets the message, prints first letter of it, waits for 1 second.
+	/// Models consumer, doing heavy computation on a message.
 	__attribute__ ((noreturn))
 	auto listen(int sck){
 		for(;;){
@@ -129,7 +134,7 @@ namespace{
 		}		
 	}
 	
-	/// run the client
+	/// run the client in transmission mode
 	__attribute__ ((noreturn))
 	auto client_speak(const char* path){
 		auto s = bind_local_udp(nullptr);
@@ -151,6 +156,7 @@ namespace{
 		strncpy(remote.sun_path, path, sizeof(remote.sun_path));
 		
 		sendto(s, "hi", 3, 0, reinterpret_cast<sockaddr*>(&remote), sizeof(remote));
+		std::cout << "sent 'hi' to: " << remote.sun_path << std::endl; // debug
 		
 		listen(s);
 	}
@@ -168,14 +174,16 @@ namespace{
 	auto server_speak(const char* path){
 		auto s = bind_local_udp(path);
 		
-		auto remote = sockaddr{};
-		auto remote_len = socklen_t{};
+		auto remote = sockaddr_un{};
+		auto remote_len = socklen_t(sizeof(remote));
 		auto buf = std::array<char, 3>{};
-		if(recvfrom(s, buf.data(), 3, 0, &remote, &remote_len) == -1){
+		if(recvfrom(s, buf.data(), 3, 0, reinterpret_cast<sockaddr*>(&remote), &remote_len) == -1){
 			throwup("recvfrom()");
 		}
+		std::cout << "received " << std::string(begin(buf), end(buf)) 
+		          << " from " << remote.sun_path << std::endl; // debug
 		
-		speak(s, &remote, remote_len);
+		speak(s, reinterpret_cast<sockaddr*>(&remote), remote_len);
 	}
 } // namespace
 
