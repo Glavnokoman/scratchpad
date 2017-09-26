@@ -94,7 +94,7 @@ namespace{
 	}
 
 	/// Busy produce 1kB messages. epolls on the given port and sends the last produced message
-	/// once that becomes writable.
+	/// once the port becomes writable.
 	__attribute__ ((noreturn))
 	auto speak(int sck, sockaddr* remote, socklen_t size_remote){
 		auto epollfd = epoll_create1(0);
@@ -120,8 +120,8 @@ namespace{
 		}
 	}
 
-	/// Listen to a given socket. Gets the message, prints first letter of it, waits for 1 second.
-	/// Models consumer, doing heavy computation on a message.
+	/// Listen to a given socket. Gets the message, prints first letter of it, waits for 1 second. Repeat.
+	/// Models consumer doing heavy computation on a message.
 	__attribute__ ((noreturn))
 	auto listen(int sck){
 		for(;;){
@@ -176,8 +176,8 @@ namespace{
 
 		auto remote = sockaddr_un{};
 		auto remote_len = socklen_t(sizeof(remote));
-		auto buf = std::array<char, 3>{};
-		if(recvfrom(s, buf.data(), 3, 0, reinterpret_cast<sockaddr*>(&remote), &remote_len) == -1){
+		auto buf = std::array<char, 8>{};
+		if(recvfrom(s, buf.data(), 8, 0, reinterpret_cast<sockaddr*>(&remote), &remote_len) == -1){
 			throwup("recvfrom()");
 		}
 		std::cout << "received '" << std::string(begin(buf), end(buf))
