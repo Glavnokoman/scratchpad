@@ -33,5 +33,6 @@ func main() {
 		data[0] = i
 		i += 1
 		l.WriteTo(data[:], addr)
+		log.Println("wrote")
 	}
 }
