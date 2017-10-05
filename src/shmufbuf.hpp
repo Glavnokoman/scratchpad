@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <memory>
 #include <tuple>
@@ -76,8 +77,10 @@ namespace detail{
 			close(fd);
 		}
 	}; // struct File_handle
+
 } // namespace detail
 
+namespace todelete {
 /// memory-mapped IPC SPSC FIFO buffer
 template<class T>
 struct ShmufBuf {
@@ -115,17 +118,18 @@ struct ShmufBuf {
 				}
 				cb.id_rd = rdid_n;
 				cb.state = detail::ControlBlock::EMPTY;
-				return reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + rdid_n*sizeof(T));
+				auto p = ptr.get() + sizeof(detail::ControlBlock) + rdid_n*sizeof(T);
+				return reinterpret_cast<T&>(*p);
 			}
 			
 			id_wr = cb.id_wr;
 		}
 		// TODO: potential problem. cb.id_wr may be overriden by another process here
 		auto lock_blk = detail::FileBlockLock(fd.fd, F_RDLCK, SEEK_SET
-		                                     , sizeof(detail::ControlBlock) + id_wr*sizeof(T), sizeof(T));
+		, sizeof(detail::ControlBlock) + id_wr*sizeof(T), sizeof(T));
 		auto r = try_pop();
 		assert(r != nullptr);
-		return r;
+		return *r;
 	}
 	
 	///
@@ -142,16 +146,17 @@ struct ShmufBuf {
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
 		
 		auto p = reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.id_wr*sizeof(T));
-		std::copy_n(p, 1, &frame);
+		std::copy_n(&frame, 1, p);
 		
 		auto lck_ctl = detail::FileBlockLock(fd.fd);
 
 		cb.state = detail::ControlBlock::FULL;
+		cb.id_wr = next_wrid(cb);
+	}
+	
+	/// ugly as hell
+	auto push(void* data)-> void {
 		
-		auto wrid_n = next_wrid(cb);
-		detail::FileBlockLock(fd.fd, F_WRLCK, SEEK_SET, sizeof(detail::ControlBlock) + cb.id_wr*sizeof(T), sizeof(T)); // clears the lock (probably)
-		detail::FileBlockLock(fd.fd, F_WRLCK, SEEK_SET, sizeof(detail::ControlBlock) + wrid_n*sizeof(T), sizeof(T)).detach();
-		cb.id_wr = wrid_n;
 	}
 	
 	///
@@ -203,6 +208,39 @@ struct ShmufBuf {
 	}
 	
 // data	
+	using ptr_t = std::unique_ptr<char, detail::Unmapper>;
+	
+	detail::File_handle fd;  ///< file descriptor for a memory-mapped obj
+	ptr_t ptr;               ///< pointer to head of a shared memory buffer. \internal TODO: make it const for c++17
+	const uint8_t nslots;    ///< number of slots in buffer
+}; // struct ShmufBuf
+}
+
+template<class T>
+struct ShmufBuf {
+	///
+	auto try_pop()-> T* {
+		throw "not implemented";
+	}
+	
+	///
+	auto pop()-> T* {
+		throw "not implemented";
+	}
+	
+	auto push(const T* data)-> void {
+		
+	}
+	
+	static auto create(const char* path, size_t datalen, uint8_t nelements=3)-> ShmufBuf {
+		throw "not implemented";
+	}
+	
+	static auto connect(const char* path, size_t datalen)-> ShmufBuf {
+		
+	}
+	
+	// data	
 	using ptr_t = std::unique_ptr<char, detail::Unmapper>;
 	
 	detail::File_handle fd;  ///< file descriptor for a memory-mapped obj
