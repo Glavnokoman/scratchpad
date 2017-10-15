@@ -15,15 +15,15 @@
 namespace detail{
 	///
 	struct ControlBlock {
-		auto is_empty() const-> bool { return id_rd == id_wr; }
+		auto is_empty() const-> bool { return rd_cur == rd_next; }
+		auto set_empty(){rd_cur = rd_next;}
 		
-		auto set_empty(){id_rd = id_wr;}
-		
-		uint8_t id_wr;
-		uint8_t id_rd;
+		uint8_t wr_next;
+		uint8_t rd_cur;
+		uint8_t rd_next;
 	};
 	
-	// basic wrapper aroud flock, to give it with Lockable interface
+	// basic wrapper around flock, to give it with Lockable interface
 	class Flock {
 	public:
 		Flock(int fd, short l_type, long l_len, long l_start=0, short l_whence=SEEK_SET)
@@ -65,8 +65,14 @@ namespace detail{
 	
 	/// raii wrapper of a file handle
 	struct File_handle {
-		const int fd;
-		~File_handle() noexcept { close(fd); }
+		File_handle(int fd): _fd(fd){}
+		File_handle(const File_handle&) = delete;
+		File_handle(File_handle&& other) noexcept : _fd(other._fd) { other._fd = -1; }
+		~File_handle() noexcept { if(_fd != -1) close(_fd); }
+		
+		auto fd() const {return _fd;}
+	private:
+		int _fd;
 	}; // struct File_handle
 } // namespace detail
 
@@ -83,7 +89,7 @@ struct ShmufBuf {
 	/// Tries to pop the value from the buffer. Nonblocking
 	/// \return Pointer to the value in the buffer. The pointer remains valid (and underlying data const) until the next call to one of pop() function. if the buffer is empty the nullptr is returned.
 	auto try_pop()-> T* { 
-		auto flock = detail::Flock(fd.fd, F_WRLCK, sizeof(detail::ControlBlock));
+		auto flock = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
 		std::lock_guard<detail::Flock> lck(flock);
 		
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
@@ -91,7 +97,8 @@ struct ShmufBuf {
 			return nullptr;
 		}
 		cb.set_empty();
-		return reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.id_rd*type_size());
+		auto p = ptr.get() + sizeof(detail::ControlBlock) + cb.rd_cur*type_size();
+		return reinterpret_cast<T*>(p);
 	}
 	
 	/// Returns the value from the buffer. Blocking. If the buffer is empty waits till smth is pushed there and then returns valid reference. 
@@ -101,28 +108,31 @@ struct ShmufBuf {
 		
 		auto id_wr = uint8_t{};
 		{  
-			auto flock = detail::Flock(fd.fd, F_WRLCK, sizeof(detail::ControlBlock));
+			auto flock = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
 			std::lock_guard<detail::Flock> lck(flock);
 			if(!cb.is_empty()){
+				auto p = ptr.get() + sizeof(detail::ControlBlock) + cb.rd_cur*type_size();
 				cb.set_empty();
-				auto p = ptr.get() + sizeof(detail::ControlBlock) + cb.id_rd*type_size();
 				return reinterpret_cast<T&>(*p);
 			}
 			
-			id_wr = cb.id_wr;
+			id_wr = cb.wr_next;
 		}
-		auto flock = detail::Flock(fd.fd, F_RDLCK, sizeof(T), sizeof(detail::ControlBlock) + id_wr*type_size());
+		auto flock = detail::Flock(fd.fd(), F_RDLCK, sizeof(T), sizeof(detail::ControlBlock) + id_wr*type_size());
 		std::lock_guard<detail::Flock> lock_blk(flock); // lazy-waiting
 		
-		auto r = try_pop();
-		assert(r != nullptr);
-		return *r;
+		auto flock_ctl = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
+		std::lock_guard<detail::Flock> lck_ctl(flock_ctl);
+
+		cb.set_empty();
+		auto p = ptr.get() + sizeof(detail::ControlBlock) + cb.rd_cur*type_size();
+		return reinterpret_cast<T&>(*p);
 	}
 	
 	///
 	auto next_wrid(const detail::ControlBlock& cb)-> uint8_t {
-		auto r = (cb.id_wr + 1) % nslots;
-		while(r == cb.id_rd){
+		auto r = (cb.wr_next + 1) % nslots;
+		while(r == cb.rd_cur){
 			r = (r + 1) % nslots;
 		}
 		return r;
@@ -132,24 +142,23 @@ struct ShmufBuf {
 	auto push(const T& frame)-> void { 
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
 		
-		auto p = reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.id_wr*sizeof(T));
+		auto p = reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.wr_next*sizeof(T));
 		std::copy_n(&frame, 1, p);
 		
-		detail::Flock(fd.fd, F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.id_wr*sizeof(T)).unlock();
+		detail::Flock(fd.fd(), F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.wr_next*sizeof(T)).unlock();
 
-		auto flock_ctl = detail::Flock(fd.fd, F_WRLCK, sizeof(detail::ControlBlock));
+		auto flock_ctl = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
 		std::lock_guard<detail::Flock> lck_ctl(flock_ctl);
 		
-		const auto id_wr_new = next_wrid(cb); // do not try to 'optimize' this one out
-		cb.id_rd = cb.id_wr;
-		cb.id_wr = id_wr_new;
+		cb.rd_next = cb.wr_next;
+		cb.wr_next = next_wrid(cb);
 		
-		detail::Flock(fd.fd, F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.id_wr*sizeof(T)).try_lock();
+		detail::Flock(fd.fd(), F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.wr_next*sizeof(T)).try_lock();
 	}
 	
 	///
 	auto empty()-> bool {
-		auto flock = detail::Flock(fd.fd, F_RDLCK);
+		auto flock = detail::Flock(fd.fd(), F_RDLCK);
 		std::lock_guard<detail::Flock> lck_ctl(flock);
 		
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
@@ -213,7 +222,7 @@ struct ShmufBuf<T[]> {
 	/// Tries to pop the value from the buffer. Nonblocking
 	/// \return Pointer to the value in the buffer. The pointer remains valid (and underlying data const) until the next call to one of pop() function. if the buffer is empty the nullptr is returned.
 	auto try_pop()-> T* { 
-		auto flock = detail::Flock(fd.fd, F_WRLCK, sizeof(detail::ControlBlock));
+		auto flock = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
 		std::lock_guard<detail::Flock> lck(flock);
 		
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
@@ -221,7 +230,7 @@ struct ShmufBuf<T[]> {
 			return nullptr;
 		}
 		cb.set_empty();
-		return reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.id_rd*type_size());
+		return reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.rd_cur*type_size());
 	}
 	
 	/// Returns the value from the buffer. Blocking. If the buffer is empty waits till smth is pushed there and then returns valid reference. 
@@ -229,30 +238,32 @@ struct ShmufBuf<T[]> {
 	auto pop()-> T* {
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
 		
-		auto id_wr = uint8_t{};
+		auto wr_next = uint8_t{};
 		{
-			auto flock = detail::Flock(fd.fd, F_WRLCK, sizeof(detail::ControlBlock));
+			auto flock = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
 			std::lock_guard<detail::Flock> lck(flock);
 			if(!cb.is_empty()){
 				cb.set_empty();
-				auto p = ptr.get() + sizeof(detail::ControlBlock) + cb.id_rd*type_size();
+				auto p = ptr.get() + sizeof(detail::ControlBlock) + cb.rd_cur*type_size();
 				return reinterpret_cast<T*>(p);
 			}
 			
-			id_wr = cb.id_wr;
+			wr_next = cb.wr_next;
 		}
-		auto flock = detail::Flock(fd.fd, F_RDLCK, sizeof(T), sizeof(detail::ControlBlock) + id_wr*type_size());
+		auto flock = detail::Flock(fd.fd(), F_RDLCK, sizeof(T), sizeof(detail::ControlBlock) + wr_next*type_size());
 		std::lock_guard<detail::Flock> lock_blk(flock); // lazy-waiting
 		
-		auto r = try_pop();
-		assert(r != nullptr);
-		return r;
+		auto flock_ctl = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
+		std::lock_guard<detail::Flock> lck_ctl(flock_ctl);
+
+		cb.set_empty();
+		return reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.rd_cur*type_size());
 	}
 	
 	///
 	auto next_wrid(const detail::ControlBlock& cb)-> uint8_t {
-		auto r = (cb.id_wr + 1) % nslots;
-		while(r == cb.id_rd){
+		auto r = (cb.wr_next + 1) % nslots;
+		while(r == cb.rd_cur){
 			r = (r + 1) % nslots;
 		}
 		return r;
@@ -262,24 +273,23 @@ struct ShmufBuf<T[]> {
 	auto push(const T frame[])-> void { 
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());
 		
-		auto p = reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.id_wr*type_size());
+		auto p = reinterpret_cast<T*>(ptr.get() + sizeof(detail::ControlBlock) + cb.wr_next*type_size());
 		std::copy(frame, frame+slot_size, p);
 		
-		detail::Flock(fd.fd, F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.id_wr*type_size()).unlock();
+		detail::Flock(fd.fd(), F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.wr_next*type_size()).unlock();
 
-		auto flock_ctl = detail::Flock(fd.fd, F_WRLCK, sizeof(detail::ControlBlock));
+		auto flock_ctl = detail::Flock(fd.fd(), F_WRLCK, sizeof(detail::ControlBlock));
 		std::lock_guard<detail::Flock> lck_ctl(flock_ctl);
 		
-		const auto id_wr_new = next_wrid(cb); // do not try to 'optimize' this one out
-		cb.id_rd = cb.id_wr;
-		cb.id_wr = id_wr_new;
+		cb.rd_next = cb.wr_next;
+		cb.wr_next = next_wrid(cb);
 		
-		detail::Flock(fd.fd, F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.id_wr*type_size()).try_lock();
+		detail::Flock(fd.fd(), F_WRLCK, sizeof(T), sizeof(detail::ControlBlock) + cb.wr_next*type_size()).try_lock();
 	}
 	
 	///
 	auto empty()-> bool {
-		auto flock = detail::Flock(fd.fd, F_RDLCK);
+		auto flock = detail::Flock(fd.fd(), F_RDLCK);
 		std::lock_guard<detail::Flock> lck_ctl(flock);
 		
 		auto& cb = reinterpret_cast<detail::ControlBlock&>(*ptr.get());

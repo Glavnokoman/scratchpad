@@ -15,3 +15,6 @@ endfunction()
 
 add_catch_test(test_vec_erase_idx vec_erase_idx_t.cpp)
 target_link_libraries(test_vec_erase_idx PRIVATE vec_idx_erase)
+
+add_catch_test(test_bufbuf bufbuf_t.cpp)
+target_link_libraries(test_bufbuf PRIVATE bufbuf pthread)
