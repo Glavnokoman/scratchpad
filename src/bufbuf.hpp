@@ -16,7 +16,7 @@ public:
 	/// Construct buffer with given number of writing slots. Actual number of slots is that + 2.
 	BufBuf(size_t nslots      ///< number of writing slots
 	       , size_t slotsize  ///< number of elements of type T in one slot
-	): buf(2*slotsize), slotsize(slotsize)
+	): slotsize(slotsize), buf(2*slotsize)
 	{
 		buf.reserve((nslots + 2)*slotsize);
 		rd_next = rd_cur = buf.data();

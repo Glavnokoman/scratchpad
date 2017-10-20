@@ -96,4 +96,4 @@ BENCHMARK(bm_erase_indexes_stable)->Apply(custom_args);
 BENCHMARK(bm_erase_sorted_indexes_stable)->Apply(custom_args);
 BENCHMARK(bm_erase_sorted_indexes_unstable)->Apply(custom_args);
 
-BENCHMARK_MAIN();
+BENCHMARK_MAIN()
