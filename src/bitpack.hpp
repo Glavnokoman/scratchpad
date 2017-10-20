@@ -64,8 +64,9 @@ struct Bitpack {
 			auto b0 = buf + begin/8;
 			
 			if(begin/8 == end/8){ // begin and end are in the same byte
-				constexpr auto mask = (255u >> begin%8) & (255u >> end%8);
-				b0 |= (x << (8 - end%8)) & mask;
+				constexpr auto mask = (255u >> begin%8); //  & (255u >> end%8);
+				auto xb = uint8_t(x);
+				b0 |= (xb << (8 - end%8)) & mask;
 			}
 			
 		}
