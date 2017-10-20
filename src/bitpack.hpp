@@ -31,15 +31,18 @@ template<> struct Uint<64> { using type = uint64_t; };
 template<uint8_t bits> using Uint_t = typename Uint<TypeBits<bits>::value>::type;
 
 /// big-endian bitpack
-template<uint16_t begin, uint16_t end=begin+1, class Res = Uint_t<end-begin>> 
+template<uint16_t begin, uint16_t end=begin+1u, class Res = Uint_t<end-begin>> 
 struct Bitpack {
+	/// @return true if bitpack values are within one byte boundaries
+	constexpr static auto samebyte() { return begin/8 == (end - 1)/8; }
+	
 	// proxy
 	struct V {
 		/// read value from bitpack
 		operator Res() const {
 			auto b0 = buf + begin/8;
 			
-			if(end/8 == begin/8){ // begin and end are in the same byte
+			if(samebyte()){ // begin and end are in the same byte
 				constexpr auto mask = (1u << (end - begin)) - 1u;
 				return *b0 >> (8 - end%8) & mask;
 			}
@@ -61,14 +64,18 @@ struct Bitpack {
 		
 		/// assign value to bitpack
 		auto operator=(Res x)-> void {
-			auto b0 = buf + begin/8;
-			
-			if(begin/8 == end/8){ // begin and end are in the same byte
+			if(samebyte()){ // begin and end are in the same byte
 				constexpr auto mask = (255u >> begin%8); //  & (255u >> end%8);
 				auto xb = uint8_t(x);
-				b0 |= (xb << (8 - end%8)) & mask;
+				buf[begin/8] |= (xb << (8 - end%8)) & mask;
 			}
 			
+			auto b0 = buf + (end - 1)/8;
+			if(end%8){
+				auto xb = uint8_t(x);
+				*b0 |= (xb << (8 - end%8));
+				x >>= end%8;
+			}
 		}
 		
 		
