@@ -14,7 +14,10 @@ function(add_catch_test arg_test_name arg_test_src)
 endfunction()
 
 add_catch_test(test_vec_erase_idx vec_erase_idx_t.cpp)
-target_link_libraries(test_vec_erase_idx PRIVATE vec_idx_erase)
+target_link_libraries(test_vec_erase_idx PRIVATE scratchpad)
+
+add_catch_test(test_bitpack bitpack_t.cpp)
+target_link_libraries(test_bitpack PRIVATE scratchpad)
 
 add_catch_test(test_bufbuf bufbuf_t.cpp)
-target_link_libraries(test_bufbuf PRIVATE bufbuf pthread)
+target_link_libraries(test_bufbuf PRIVATE bufbuf)

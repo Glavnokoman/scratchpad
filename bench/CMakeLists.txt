@@ -6,4 +6,4 @@ endif()
 find_package(benchmark REQUIRED)
 
 add_executable(bench_vec_erase_idx vec_erase_idx_b.cpp)
-target_link_libraries(bench_vec_erase_idx PRIVATE benchmark::benchmark vec_idx_erase)
+target_link_libraries(bench_vec_erase_idx PRIVATE benchmark::benchmark scratchpad)
