@@ -28,17 +28,17 @@ namespace {
 } // namespace name
 
 TEST_CASE("read bitfields", "[read_bitfields]"){
-	CHECK(uint8_t(H::f0_8(buf)) == buf[0]);
-	CHECK(bool(H::f0_1(buf)) == false);
-	CHECK(bool(H::f6_7(buf)) == true);
-	CHECK(uint8_t(H::f5_8(buf)) == 0b010);
-	CHECK(uint8_t(H::f6_9(buf)) == 0b100);
-	CHECK(bool(H::f7_8(buf)) == false);
-	CHECK(uint16_t(H::f5_15(buf)) == 0b0100011010);
-	CHECK(uint16_t(H::f1_17(buf)) == 0b1001010001101011);
-	CHECK(uint32_t(H::f0_32(buf)) == 0b01001010001101011110110000101101);
-	CHECK(uint32_t(H::f35_40(buf)) == 0b01010);
-	CHECK(uint32_t(H::f32_64(buf)) == 0b01001010001101011110110000101101);
+	CHECK(H::f0_8(buf) == buf[0]);
+	CHECK(H::f0_1(buf) == false);
+	CHECK(H::f6_7(buf) == true);
+	CHECK(H::f5_8(buf) == 0b010u);
+	CHECK(H::f6_9(buf) == 0b100u);
+	CHECK(H::f7_8(buf) == false);
+	CHECK(H::f5_15(buf) == 0b0100011010);
+	CHECK(H::f1_17(buf) == 0b1001010001101011);
+	CHECK(H::f0_32(buf) == 0b01001010001101011110110000101101);
+	CHECK(H::f35_40(buf) == 0b01010);
+	CHECK(H::f32_64(buf) == 0b01001010001101011110110000101101);
 }
 
 TEST_CASE("write bitfields", "[write_bitfields]"){

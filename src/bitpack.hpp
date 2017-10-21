@@ -6,8 +6,7 @@
 
 template<uint8_t val>
 struct TypeBits {
-	enum { value = val <= 1  ? 1
-	             : val <= 8  ? 8
+	enum { value = val <= 8  ? 8 // val <= 1  ? 1
 	             : val <= 16 ? 16
 	             : val <= 32 ? 32
 	             :             64 };
@@ -79,9 +78,8 @@ struct bitpack{
 		if(begin%8){ *(--b0) |= uint8_t(x); } // begin is not aligned at byte boundary
 	}
 	
-	auto friend operator == (bitpack b, Res val)-> bool {
-		return true;
-	}
+	template<class T>
+	auto friend operator == (bitpack b, T val)-> bool { return Res(b) == val; }
 	
 private: // helpers
 	/// @return true if bitpack values are within one byte boundaries
