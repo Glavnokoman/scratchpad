@@ -58,15 +58,13 @@ struct bitpack{
 		assert(x <= (Res(-1) >> (8*sizeof(Res) - (end - begin)))); // number fits into designated bits
 		if(samebyte()){ // begin and end are in the same byte
 			constexpr auto mask = (255u >> begin%8);
-			auto xb = uint8_t(x);
-			buf[begin/8] |= (xb << (8 - end%8)) & mask;
+			buf[begin/8] |= (uint8_t(x) << (8 - end%8)) & mask;
 			return;
 		}
 		
 		auto b0 = buf + (end + 7)/8; // end of the next byte to write
 		if(end%8){ // write the last bits not making a complete byte
-			auto xb = uint8_t(x);
-			*(--b0) |= (xb << (8 - end%8));
+			*(--b0) |= (uint8_t(x) << (8 - end%8));
 			x >>= end%8;
 		}
 

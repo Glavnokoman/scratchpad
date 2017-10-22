@@ -4,8 +4,6 @@
 #include "catch/catch.hpp"
 
 namespace {
-
-	// test bitpack
 	struct H {
 		enum {size = 64};
 		
