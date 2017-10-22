@@ -6,14 +6,13 @@
 
 template<uint8_t val>
 struct TypeBits {
-	enum { value = val <= 8  ? 8 // val <= 1  ? 1
+	enum { value = val <= 8  ? 8
 	             : val <= 16 ? 16
 	             : val <= 32 ? 32
 	             :             64 };
 };
 
 template<uint8_t bits> struct Uint;
-template<> struct Uint<1>  { using type = bool; };
 template<> struct Uint<8>  { using type = uint8_t; };
 template<> struct Uint<16> { using type = uint16_t; };
 template<> struct Uint<32> { using type = uint32_t; };
@@ -36,7 +35,7 @@ struct bitpack{
 		
 		if(samebyte()){ // begin and end are in the same byte
 			constexpr auto mask = (1u << (end - begin)%8u) - 1u;
-			return *b0 >> (8 - end%8) & mask;
+			return (*b0 >> (8 - end%8)) & mask;
 		}
 
 		Res r = (begin%8 == 0 ? *b0 : (*b0) & (255u >> begin%8));
@@ -55,7 +54,7 @@ struct bitpack{
 	}
 	
 	auto operator=(Res x)-> void {
-		assert(x < (1u << (end - begin))); // number fits into designated bits
+		assert(x <= (~Res(0) >> (sizeof(Res) - (end - begin)))); // number fits into designated bits
 		if(samebyte()){ // begin and end are in the same byte
 			constexpr auto mask = (255u >> begin%8);
 			auto xb = uint8_t(x);

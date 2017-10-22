@@ -20,25 +20,28 @@ namespace {
 		using f0_32 = bitpack<0, 32>;
 		using f35_40 = bitpack<35, 40>;
 		using f32_64 = bitpack<32, 64>;
+		using f64_88 = bitpack<64, 88>;
 	};
 	
-	uint8_t buf[8] = {0b01001010, 0b00110101, 0b11101100, 0b00101101
-	                  , 0b01001010, 0b00110101, 0b11101100, 0b00101101};
+	uint8_t cbuf[12] = { 0b01001010, 0b00110101, 0b11101100, 0b00101101
+	                 , 0b01001010, 0b00110101, 0b11101100, 0b00101101
+	                 , 0b01001010, 0b00110101, 0b11101100, 0b00101101 };
 //	const uint8_t cbuf[4] = {0b11001010, 0b00110101, 0b11101100, 0b00101101};
 } // namespace name
 
 TEST_CASE("read bitfields", "[read_bitfields]"){
-	CHECK(H::f0_8(buf) == buf[0]);
-	CHECK(H::f0_1(buf) == false);
-	CHECK(H::f6_7(buf) == true);
-	CHECK(H::f5_8(buf) == 0b010u);
-	CHECK(H::f6_9(buf) == 0b100u);
-	CHECK(H::f7_8(buf) == false);
-	CHECK(H::f5_15(buf) == 0b0100011010);
-	CHECK(H::f1_17(buf) == 0b1001010001101011);
-	CHECK(H::f0_32(buf) == 0b01001010001101011110110000101101);
-	CHECK(H::f35_40(buf) == 0b01010);
-	CHECK(H::f32_64(buf) == 0b01001010001101011110110000101101);
+	CHECK(H::f0_8(cbuf) == cbuf[0]);
+	CHECK(H::f0_1(cbuf) == false);
+	CHECK(H::f6_7(cbuf) == true);
+	CHECK(H::f5_8(cbuf) == 0b010u);
+	CHECK(H::f6_9(cbuf) == 0b100u);
+	CHECK(H::f7_8(cbuf) == false);
+	CHECK(H::f5_15(cbuf) == 0b0100011010u);
+	CHECK(H::f1_17(cbuf) == 0b1001010001101011u);
+	CHECK(H::f0_32(cbuf) == 0b01001010001101011110110000101101u);
+	CHECK(H::f35_40(cbuf) == 0b01010u);
+	CHECK(H::f32_64(cbuf) == 0b01001010001101011110110000101101u);
+	CHECK(H::f64_88(cbuf) == 0b010010100011010111101100u);
 }
 
 TEST_CASE("write bitfields", "[write_bitfields]"){
