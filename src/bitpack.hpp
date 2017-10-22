@@ -27,8 +27,8 @@ struct bitpack{
 		const uint8_t* cbuf;
 	};
 	
-	bitpack(uint8_t* buf): buf(buf) {}
-	bitpack(const uint8_t* cbuf): cbuf(cbuf) {}
+	explicit bitpack(uint8_t* buf): buf(buf) {}
+	explicit bitpack(const uint8_t* cbuf): cbuf(cbuf) {}
 
 	operator Res() const {
 		auto b0 = cbuf + begin/8;
@@ -53,12 +53,14 @@ struct bitpack{
 		return r;
 	}
 	
+//	template<class T>
 	auto operator=(Res x)-> void {
-		assert(x <= (~Res(0) >> (sizeof(Res) - (end - begin)))); // number fits into designated bits
+		assert(x <= (Res(-1) >> (8*sizeof(Res) - (end - begin)))); // number fits into designated bits
 		if(samebyte()){ // begin and end are in the same byte
 			constexpr auto mask = (255u >> begin%8);
 			auto xb = uint8_t(x);
 			buf[begin/8] |= (xb << (8 - end%8)) & mask;
+			return;
 		}
 		
 		auto b0 = buf + (end + 7)/8; // end of the next byte to write

@@ -24,9 +24,9 @@ namespace {
 	};
 	
 	uint8_t cbuf[12] = { 0b01001010, 0b00110101, 0b11101100, 0b00101101
-	                 , 0b01001010, 0b00110101, 0b11101100, 0b00101101
-	                 , 0b01001010, 0b00110101, 0b11101100, 0b00101101 };
-//	const uint8_t cbuf[4] = {0b11001010, 0b00110101, 0b11101100, 0b00101101};
+	                   , 0b01001010, 0b00110101, 0b11101100, 0b00101101
+	                   , 0b01001010, 0b00110101, 0b11101100, 0b00101101 };
+	uint8_t buf[12] = {0u};
 } // namespace name
 
 TEST_CASE("read bitfields", "[read_bitfields]"){
@@ -45,7 +45,41 @@ TEST_CASE("read bitfields", "[read_bitfields]"){
 }
 
 TEST_CASE("write bitfields", "[write_bitfields]"){
+	H::f0_8{buf} = cbuf[0];
+	CHECK(H::f0_8{buf} == cbuf[0]);
 	
+	H::f0_1{buf} = false;
+	CHECK(H::f0_1(buf) == false);
+
+	H::f6_7{buf} = true;
+	CHECK(H::f6_7(buf) == true);
+	
+	H::f5_8{buf} = 0b010u;
+	CHECK(H::f5_8(buf) == 0b010u);
+	
+	H::f6_9{buf} = 0b100u;
+	CHECK(H::f6_9(buf) == 0b100u);
+	
+	H::f7_8{buf} = false;
+	CHECK(H::f7_8(buf) == false);
+
+	H::f5_15{buf} = 0b0100011010u;
+	CHECK(H::f5_15(buf) == 0b0100011010u);
+	
+	H::f1_17{buf} = 0b1001010001101011u;
+	CHECK(H::f1_17(buf) == 0b1001010001101011u);
+	
+	H::f0_32{buf} = 0b01001010001101011110110000101101u;
+	CHECK(H::f0_32(buf) == 0b01001010001101011110110000101101u);
+	
+	H::f35_40{buf} = 0b01010u;
+	CHECK(H::f35_40(buf) == 0b01010u);
+	
+	H::f32_64{buf} = 0b01001010001101011110110000101101u;
+	CHECK(H::f32_64(buf) == 0b01001010001101011110110000101101u);
+	
+	H::f64_88{buf} = 0b010010100011010111101100u;
+	CHECK(H::f64_88(buf) == 0b010010100011010111101100u);
 }
 
 int main( int argc, char* argv[] )
