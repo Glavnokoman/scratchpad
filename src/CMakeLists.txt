@@ -17,3 +17,6 @@ add_library(scratchpad INTERFACE)
 target_include_directories(scratchpad INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_executable(ipc_unix_sockets ipc_unix_sockets.cpp)
+
+add_executable(tmpl_params_deduction constructor_tmpl_param_deduction.cpp)
+target_compile_features(tmpl_params_deduction PRIVATE cxx_std_17)
