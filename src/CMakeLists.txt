@@ -10,8 +10,9 @@ add_library(bufbuf INTERFACE)
 target_include_directories(bufbuf INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(bufbuf INTERFACE pthread)
 
-add_library(scratchpad INTERFACE) # 
+add_library(scratchpad INTERFACE) #
 target_include_directories(scratchpad INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(scratchpad INTERFACE cxx_std_17)
 
 add_executable(ipc_unix_sockets ipc_unix_sockets.cpp)
 
