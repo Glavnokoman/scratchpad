@@ -22,13 +22,11 @@ template<uint8_t bits> using Uint_t = typename Uint<TypeBits<bits>::value>::type
 /// big-endian bitpack
 template<uint16_t begin, uint16_t end=begin+1u, class Res = Uint_t<end-begin>> 
 struct bitpack{
-	union {
-		uint8_t* buf;
-		const uint8_t* cbuf;
-	};
-	
-	explicit bitpack(uint8_t* buf): buf(buf) {}
-	explicit bitpack(const uint8_t* cbuf): cbuf(cbuf) {}
+	uint8_t* buf;
+	const uint8_t* cbuf;
+
+	explicit bitpack(uint8_t* buf): buf(buf), cbuf(buf) {}
+	explicit bitpack(const uint8_t* cbuf): buf(nullptr), cbuf(cbuf) {}
 
 	operator Res() const {
 		auto b0 = cbuf + begin/8;
