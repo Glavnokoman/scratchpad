@@ -20,7 +20,40 @@ namespace detail {
 	template<> struct Uint<64> { using type = uint64_t; };
 	
 	template<uint8_t bits> using Uint_t = typename Uint<TypeBits<bits>::value>::type;
+
+	template<uint16_t begin, uint16_t end, class Res=Uint_t<end-begin>>
+	struct BitsProxy{ 
+		uint8_t* const buf;
+		
+		explicit BitsProxy(uint8_t* buf): buf{buf}{}
+		
+		operator Res() const {
+			return Res{};
+		}
+	};
+	
+	template<uint16_t begin, uint16_t end, class Res=Uint_t<end-begin>>
+	struct ConstBitsProxy{
+		const uint8_t* const buf;
+		
+		explicit ConstBitsProxy(const uint8_t* buf): buf{buf}{}
+		
+		operator Res() const { return Res{}; }
+	};
 }
+
+template<uint16_t begin, uint16_t end> struct BitRange{ enum{Begin=begin, End=end};};
+
+template<class T>
+auto bits(const uint8_t* buf) { 
+	return detail::ConstBitsProxy<T::Begin, T::End>{buf}; 
+}
+
+template<class T>
+auto bits(uint8_t* buf) {
+	return detail::BitsProxy<T::Begin, T::End>{buf};
+}
+
 
 /// big-endian bitpack
 template<uint16_t begin, uint16_t end=begin+1u, class Res = detail::Uint_t<end-begin>> 
