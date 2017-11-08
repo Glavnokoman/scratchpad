@@ -63,25 +63,24 @@ namespace detail {
 			assert(x <= (Res(-1) >> (8*sizeof(Res) - (end - begin)))); // number fits into designated bits
 			
 			if constexpr(samebyte<begin, end>()){ // begin and end are in the same byte
-				buf[begin/8] |= (uint8_t(x) << (8 - end%8)); // & mask;
+				buf[begin/8] |= (uint8_t(x) << (8 - end%8)) & 255u;
 				return;
 			}
 			
-			if constexpr(begin % 8){ // begin is not aligned at byte boundary
-				buf[begin/8] |= uint8_t(x) >> begin%8;
-				x >>= begin%8;
+			if constexpr(end%8){ // end is not aligned at byte boundary
+				buf[end/8] |= (uint8_t(x) << (8 - end%8)) & 255u;
+				x >> end%8;
 			}
 			
-			// write complete bytes
 			constexpr auto bytebegin = (begin + 7u) & ~7u;
-			auto b0 = buf + bytebegin/8;
+			auto b0 = buf + end/8 - 1;
 			for(auto i = (end - bytebegin)/8u; i != 0u; --i){
-				*(b0++) = uint8_t(x);
+				*b0-- = uint8_t(x);
 				x >>= 8;
 			}
 			
-			if constexpr(end%8){ // end is not aligned at byte boundary
-				buf[end/8] |= uint8_t(x) << (8 - end%8u);
+			if constexpr(begin%8u){
+				
 			}
 		}
 		
