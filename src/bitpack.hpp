@@ -38,7 +38,7 @@ namespace detail {
 		operator Res() const {
 			auto b0 = buf + begin/8;
 			
-			if constexpr (samebyte<begin, end>()){ // begin and end are in the same byte
+			if constexpr(samebyte<begin, end>()){ // begin and end are in the same byte
 				constexpr auto mask = (1u << (end - begin)) - 1u;
 				return (*b0 >> (8 - end%8)) & mask;
 			}
@@ -46,12 +46,12 @@ namespace detail {
 			Res r = (begin%8 == 0 ? *b0 : (*b0) & (255u >> begin%8));
 			
 			constexpr auto bytebegin = (begin + 8u) & ~7u;     // begin of the next read aligned at byte boundary
-			for(auto i = (end - bytebegin)/8u ; i != 0u; --i){ // read up complete bytes
+			for(auto i = (end - bytebegin)/8u; i != 0u; --i){ // read up complete bytes
 				r = (r << 8);
 				r |= *(++b0);
 			}
 	
-			if constexpr (end%8 != 0){ // end is not aligned at byte boundary
+			if constexpr(end%8 != 0){ // end is not aligned at byte boundary
 				r = (r << end%8);
 				r |= *(++b0) >> (8 - end%8);
 			}
@@ -62,27 +62,27 @@ namespace detail {
 		auto operator= (Res x)-> void {
 			assert(x <= (Res(-1) >> (8*sizeof(Res) - (end - begin)))); // number fits into designated bits
 			
-			if constexpr (samebyte<begin, end>()){ // begin and end are in the same byte
-				constexpr auto mask = (255u >> begin%8);
-				buf[begin/8] |= (uint8_t(x) << (8 - end%8)) & mask;
+			if constexpr(samebyte<begin, end>()){ // begin and end are in the same byte
+				buf[begin/8] |= (uint8_t(x) << (8 - end%8)); // & mask;
 				return;
 			}
 			
-			auto b0 = buf + (end + 7)/8; // end of the next byte to write
-			if constexpr (end%8 != 0){ // write the last bits not making a complete byte
-				*(--b0) |= (uint8_t(x) << (8 - end%8));
-				x >>= end%8;
-			}
-	
-			constexpr auto byteend = end & ~7u; // end of the next write aligned at byte boundary
-			if constexpr ((byteend - begin) > 8u){
-				for(auto i = (byteend - begin)/8u; i != 0; --i){ // write complete bytes
-					*(--b0) = uint8_t(x);
-					x >>= 8;
-				}
+			if constexpr(begin % 8){ // begin is not aligned at byte boundary
+				buf[begin/8] |= uint8_t(x) >> begin%8;
+				x >>= begin%8;
 			}
 			
-			if constexpr (begin%8 != 0){ *(--b0) |= uint8_t(x); } // begin is not aligned at byte boundary
+			// write complete bytes
+			constexpr auto bytebegin = (begin + 7u) & ~7u;
+			auto b0 = buf + bytebegin/8;
+			for(auto i = (end - bytebegin)/8u; i != 0u; --i){
+				*(b0++) = uint8_t(x);
+				x >>= 8;
+			}
+			
+			if constexpr(end%8){ // end is not aligned at byte boundary
+				buf[end/8] |= uint8_t(x) << (8 - end%8u);
+			}
 		}
 		
 		///
@@ -97,16 +97,16 @@ namespace detail {
 	using ConstBitsProxy = BitsProxy_<uint8_t const*, begin, end, Uint_t<end-begin>>;
 }
 
-template<uint16_t begin, uint16_t end> struct BitRange{ enum{Begin=begin, End=end};};
+template<uint16_t begin, uint16_t end=begin+1> struct BitRange{ enum{Begin=begin, End=end};};
 
 template<class T>
 auto bits(const uint8_t* buf) {
-	std::cout << __PRETTY_FUNCTION__ << "\n";
+//	std::cout << __PRETTY_FUNCTION__ << "\n";
 	return detail::ConstBitsProxy<T::Begin, T::End>{buf}; 
 }
 
 template<class T>
 auto bits(uint8_t* buf) {
-	std::cout << __PRETTY_FUNCTION__ << "\n";
+//	std::cout << __PRETTY_FUNCTION__ << "\n";
 	return detail::BitsProxy<T::Begin, T::End>{buf};
 }
