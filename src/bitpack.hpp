@@ -80,7 +80,7 @@ namespace detail {
 			}
 			
 			if constexpr(begin%8u){
-				
+				*b0 |= uint8_t(x) & 255u;
 			}
 		}
 		
