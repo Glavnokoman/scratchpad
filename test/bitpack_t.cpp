@@ -24,17 +24,8 @@ namespace {
 	const uint8_t cbuf[12] = { 0b01001010, 0b00110101, 0b11101100, 0b00101101
 	                         , 0b01001010, 0b00110101, 0b11101100, 0b00101101
 	                         , 0b01001010, 0b00110101, 0b11101100, 0b00101101 };
-	uint8_t buf[12] = {0u};
+//	uint8_t buf[12] = {0u};
 } // namespace name
-
-TEST_CASE("read bitranges", "[read_bitfoelds"){
-	CHECK(bits<G::f0_8>(cbuf) == cbuf[0]);
-	
-//	bits<G::f0_8>(cbuf) = 0;
-	
-	bits<G::f0_8>(buf) = cbuf[0];
-	CHECK(bits<G::f0_8>(buf) == cbuf[0]);
-}
 
 TEST_CASE("read bitfields", "[read_bitfields]"){
 	CHECK(bits<G::f0_8>(cbuf) == cbuf[0]);
@@ -51,42 +42,63 @@ TEST_CASE("read bitfields", "[read_bitfields]"){
 	CHECK(bits<G::f64_88>(cbuf) == 0b010010100011010111101100u);
 }
 
-TEST_CASE("write bitfields", "[write_bitfields]"){
-	bits<G::f0_8>(buf) = cbuf[0];
-	CHECK(bits<G::f0_8>(buf) == cbuf[0]);
-	
-	bits<G::f0_1>(buf) = false;
-	CHECK(bits<G::f0_1>(buf) == false);
+TEST_CASE("or bitfields", "[or_bitfields]"){
+	uint8_t buf[12] = {0u};
 
-	bits<G::f6_7>(buf) = true;
-	CHECK(bits<G::f6_7>(buf) == true);
-	
-	bits<G::f5_8>(buf) = 0b010u;
-	CHECK(bits<G::f5_8>(buf) == 0b010u);
-	
-	bits<G::f6_9>(buf) = 0b100u;
-	CHECK(bits<G::f6_9>(buf) == 0b100u);
-	
-	bits<G::f7_8>(buf) = false;
-	CHECK(bits<G::f7_8>(buf) == false);
-
-	bits<G::f5_15>(buf) = 0b0100011010u;
-	CHECK(bits<G::f5_15>(buf) == 0b0100011010u);
-	
-	bits<G::f1_17>(buf) = 0b1001010001101011u;
-	CHECK(bits<G::f1_17>(buf) == 0b1001010001101011u);
-	
-	bits<G::f0_32>(buf) = 0b01001010001101011110110000101101u;
-	CHECK(bits<G::f0_32>(buf) == 0b01001010001101011110110000101101u);
-	
-	bits<G::f35_40>(buf) = 0b01010u;
-	CHECK(bits<G::f35_40>(buf) == 0b01010u);
-	
-	bits<G::f32_64>(buf) = 0b01001010001101011110110000101101u;
-	CHECK(bits<G::f32_64>(buf) == 0b01001010001101011110110000101101u);
-	
-	bits<G::f64_88>(buf) = 0b010010100011010111101100u;
-	CHECK(bits<G::f64_88>(buf) == 0b010010100011010111101100u);
+	SECTION("write 1 complete byte in the head"){
+		bits<G::f0_8>(buf) |= cbuf[0];
+		CHECK(bits<G::f0_8>(buf) == cbuf[0]);
+	}
+	SECTION("write 1 bit in the head"){
+		bits<G::f0_1>(buf) |= false;
+		CHECK(bits<G::f0_1>(buf) == false);
+		bits<G::f0_1>(buf) |= true;
+		CHECK(bits<G::f0_1>(buf) == true);
+	}
+	SECTION("write one bit in the middle of first byte"){
+		bits<G::f6_7>(buf) |= false;
+		CHECK(bits<G::f6_7>(buf) == false);
+		bits<G::f6_7>(buf) |= true;
+		CHECK(bits<G::f6_7>(buf) == true);
+	}
+	SECTION("several bits at the end of a byte"){
+		bits<G::f5_8>(buf) |= 0b010u;
+		CHECK(bits<G::f5_8>(buf) == 0b010u);
+	}
+	SECTION("several bits in the beginning of a byte"){
+		bits<G::f6_9>(buf) |= 0b100u;
+		CHECK(bits<G::f6_9>(buf) == 0b100u);
+	}
+	SECTION("write last bit of a byte"){
+		bits<G::f7_8>(buf) |= false;
+		CHECK(bits<G::f7_8>(buf) == false);
+		bits<G::f7_8>(buf) |= true;
+		CHECK(bits<G::f7_8>(buf) == true);
+	}
+	SECTION("span write over a byte border (incomplete bytes)"){
+		bits<G::f5_15>(buf) |= 0b0100011010u;
+		CHECK(bits<G::f5_15>(buf) == 0b0100011010u);
+	}
+	SECTION("span write over a byte border (complete bytes)"){
+		bits<G::f1_17>(buf) |= 0b1001010001101011u;
+		CHECK(bits<G::f1_17>(buf) == 0b1001010001101011u);
+	}
+	SECTION("write 4 bytes in the beginning"){
+		bits<G::f0_32>(buf) |= 0b01001010001101011110110000101101u;
+		CHECK(bits<G::f0_32>(buf) == 0b01001010001101011110110000101101u);
+	}
+	SECTION("span write over a byte border (incomplete byte)"){
+		bits<G::f35_40>(buf) |= 0b01010u;
+		CHECK(bits<G::f35_40>(buf) == 0b01010u);
+	}
+	SECTION("write 4 bytes in the middle of buf"){
+		bits<G::f32_64>(buf) |= 0b01001010001101011110110000101101u;
+		CHECK(bits<G::f32_64>(buf) == 0b01001010001101011110110000101101u);
+	}
+	SECTION("write 3 bytes after the 64 bit offset"){
+		bits<G::f64_88>(buf) |= 0b010010100011010111101100u;
+		CHECK(bits<G::f64_88>(buf) == 0b010010100011010111101100u);
+	}
 }
 
 int main( int argc, char* argv[] )
