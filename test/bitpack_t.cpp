@@ -7,18 +7,18 @@ namespace {
 	struct G {
 		enum {size = 64};
 		
-		using f0_8 = BitRange<0, 8>;
-		using f0_1  = BitRange<0, 1>;
-		using f6_7  = BitRange<6>;
-		using f5_8  = BitRange<5, 8>;
-		using f6_9  = BitRange<6, 9>;
-		using f7_8  = BitRange<7, 8> ;
-		using f5_15 = BitRange<5, 15>;
-		using f1_17 = BitRange<1, 17>;
-		using f0_32 = BitRange<0, 32>;
-		using f35_40 = BitRange<35, 40>;
-		using f32_64 = BitRange<32, 64>;
-		using f64_88 = BitRange<64, 88>;
+		using f0_8  = Bits<0, 8>;
+		using f0_1  = Bits<0, 1>;
+		using f6_7  = Bits<6>;
+		using f5_8  = Bits<5, 8>;
+		using f6_9  = Bits<6, 9>;
+		using f7_8  = Bits<7, 8> ;
+		using f5_15 = Bits<5, 15>;
+		using f1_17 = Bits<1, 17>;
+		using f0_32 = Bits<0, 32>;
+		using f35_40 = Bits<35, 40>;
+		using f32_64 = Bits<32, 64>;
+		using f64_88 = Bits<64, 88>;
 	};
 	
 	const uint8_t cbuf[12] = { 0b01001010, 0b00110101, 0b11101100, 0b00101101

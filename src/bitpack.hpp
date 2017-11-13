@@ -120,7 +120,7 @@ namespace detail {
 	using ConstBitsProxy = BitsProxy_<uint8_t const*, begin, end, Uint_t<end-begin>>;
 }
 
-template<uint16_t begin, uint16_t end=begin+1> struct BitRange{ enum{Begin=begin, End=end};};
+template<uint16_t begin, uint16_t end=begin+1> struct Bits{ enum{Begin=begin, End=end};};
 
 template<class T>
 auto bits(const uint8_t* buf) {
