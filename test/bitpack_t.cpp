@@ -107,7 +107,8 @@ TEST_CASE("or-assign bitfields", "[or_bitfields]"){
 }
 
 TEST_CASE("assign bitfields", "[assign_bitfields]"){
-	uint8_t buf[12] = {0u};
+	uint8_t buf[12] = { 255u, 255u, 255u, 255u, 255u, 255u
+	                  , 255u, 255u, 255u, 255u, 255u, 255u };
 
 	SECTION("write 1 complete byte in the head"){
 		bits<H::f0_8>(buf) = cbuf[0];
