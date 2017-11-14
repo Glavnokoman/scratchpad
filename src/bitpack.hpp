@@ -24,6 +24,30 @@ namespace detail {
 	template<uint8_t begin, uint8_t end>
 	constexpr auto samebyte()-> bool { return begin/8u == end/8u; }
 	
+	template<class Buf, class T, uint8_t times, bool shift_last>
+	auto write_end_aligned(Buf& buf, T& x){
+		if constexpr(times > 0){
+			*(--buf) = uint8_t(x);
+			if constexpr(times > 1){
+				write_end_aligned<Buf, T, times - 1, shift_last>(buf, x >>= 8);
+			} else if constexpr(shift_last){
+				x >>= 8;
+			}
+		} 
+	}
+	
+	template<class Buf, class T, uint8_t times, bool shift_last>
+	auto or_end_aligned(Buf& buf, T& x){
+		if constexpr(times > 0){
+			*(--buf) |= uint8_t(x);
+			if constexpr(times > 1){
+				write_end_aligned<Buf, T, times - 1, shift_last>(buf, x >>= 8);
+			} else if constexpr(shift_last){
+				x >>= 8;
+			}
+		} 
+	}
+
 	///
 	template<class Buf, uint16_t begin, uint16_t end, class Res=Uint_t<end-begin>>
 	struct BitsProxy_{ 
@@ -61,16 +85,13 @@ namespace detail {
 				buf[begin/8] |= uint8_t(x) << (8 - end%8);
 			} else {
 				auto b0 = buf + (end + 7)/8; // end of the next byte to write
-				if constexpr(end%8 != 0){         // write the last bits not making a complete byte
+				if constexpr(end%8 != 0){    // write the last bits not making a complete byte
 					*(--b0) |= (uint8_t(x) << (8 - end%8));
-					x >>= end % 8;
+					x >>= end%8;
 				}
 		
-				constexpr auto byteend = end & ~7u;              // end of the next write aligned at byte boundary
-				for(auto i = (byteend - begin)/8u; i != 0; --i){ // write complete bytes
-					*(--b0) |= uint8_t(x);
-					x >>= 8;
-				}
+				constexpr auto completebytes = ((end & ~7u) - begin)/8u;
+				or_end_aligned<Buf, Res, completebytes, begin%8 != 0>(b0, x);
 		
 				if constexpr(begin%8 != 0){ // begin is not aligned at byte boundary
 					*(--b0) |= uint8_t(x);
@@ -87,17 +108,14 @@ namespace detail {
 				buf[begin/8] |= uint8_t(x) << (8 - end%8);
 			} else {
 				auto b0 = buf + (end + 7)/8; // end of the next byte to write
-				if constexpr(end%8 != 0){         // write the last bits not making a complete byte
+				if constexpr(end%8 != 0){    // write the last bits not making a complete byte
 					*(--b0) &= 255u >> end%8;
 					*b0 |= uint8_t(x) << (8 - end%8);
 					x >>= end%8;
 				}
 		
-				constexpr auto byteend = end & ~7u;              // end of the next write aligned at byte boundary
-				for(auto i = (byteend - begin)/8u; i != 0; --i){ // write complete bytes
-					*(--b0) = uint8_t(x);
-					x >>= 8;
-				}
+				constexpr auto completebytes = ((end & ~7u) - begin)/8u;
+				write_end_aligned<Buf, Res, completebytes, begin%8 != 0>(b0, x);
 				
 				if constexpr(begin%8 != 0){ // begin is not aligned at byte boundary
 					*(--b0) &= 255u << (8 - begin%8);
