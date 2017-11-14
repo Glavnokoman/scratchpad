@@ -61,7 +61,7 @@ namespace detail {
 				buf[begin/8] |= uint8_t(x) << (8 - end%8);
 			} else {
 				auto b0 = buf + (end + 7)/8; // end of the next byte to write
-				if constexpr(end%8){         // write the last bits not making a complete byte
+				if constexpr(end%8 != 0){         // write the last bits not making a complete byte
 					*(--b0) |= (uint8_t(x) << (8 - end%8));
 					x >>= end % 8;
 				}
@@ -72,7 +72,7 @@ namespace detail {
 					x >>= 8;
 				}
 		
-				if constexpr(begin%8){ // begin is not aligned at byte boundary
+				if constexpr(begin%8 != 0){ // begin is not aligned at byte boundary
 					*(--b0) |= uint8_t(x);
 				}
 			}
@@ -87,7 +87,7 @@ namespace detail {
 				buf[begin/8] |= uint8_t(x) << (8 - end%8);
 			} else {
 				auto b0 = buf + (end + 7)/8; // end of the next byte to write
-				if constexpr(end%8){         // write the last bits not making a complete byte
+				if constexpr(end%8 != 0){         // write the last bits not making a complete byte
 					*(--b0) &= 255u >> end%8;
 					*b0 |= uint8_t(x) << (8 - end%8);
 					x >>= end%8;
@@ -99,7 +99,7 @@ namespace detail {
 					x >>= 8;
 				}
 				
-				if constexpr(begin%8){ // begin is not aligned at byte boundary
+				if constexpr(begin%8 != 0){ // begin is not aligned at byte boundary
 					*(--b0) &= 255u << (8 - begin%8);
 					*b0 |= uint8_t(x);
 				}
