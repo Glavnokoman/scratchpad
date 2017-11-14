@@ -25,7 +25,7 @@ namespace detail {
 
 	/// @return true if begin and end of the bit range values are within same byte
 	template<uint8_t begin, uint8_t end>
-	constexpr static auto samebyte() { return begin/8u == end/8u; }
+	constexpr auto samebyte()-> bool { return begin/8u == end/8u; }
 	
 	///
 	template<class Buf, uint16_t begin, uint16_t end, class Res=Uint_t<end-begin>>
@@ -34,7 +34,7 @@ namespace detail {
 		
 		explicit BitsProxy_(Buf buf): buf{buf}{}
 		
-		///
+		/// read the value of the bits range
 		operator Res() const {
 			auto b0 = buf + begin/8;
 			if constexpr(samebyte<begin, end>()){ // begin and end are in the same byte
@@ -43,7 +43,7 @@ namespace detail {
 			} else {
 				Res r = (begin%8 == 0 ? *b0 : (*b0) & (255u >> begin%8));
 				
-				constexpr auto bytebegin = (begin + 8u) & ~7u;     // begin of the next read aligned at byte boundary
+				constexpr auto bytebegin = (begin + 8u) & ~7u;    // begin of the next read aligned at byte boundary
 				for(auto i = (end - bytebegin)/8u; i != 0u; --i){ // read up complete bytes
 					r = (r << 8);
 					r |= *(++b0);
@@ -57,53 +57,54 @@ namespace detail {
 			}
 		}
 		
-		/// or the value to the bitfield
+		/// or the value to the bits range
 		auto operator|= (Res x)-> void {
-			assert(x <= (Res(-1) >> (8 * sizeof(Res) - (end - begin)))); // number fits into designated bits
+			assert(x <= (Res(-1) >> (8*sizeof(Res) - (end - begin)))); // number fits into designated bits
 			if constexpr(samebyte<begin, end>()){ // begin and end are in the same byte
-				buf[begin / 8] |= uint8_t(x) << (8 - end%8);
+				buf[begin/8] |= uint8_t(x) << (8 - end%8);
 			} else {
-				auto b0 = buf + (end + 7) / 8; // end of the next byte to write
-				if constexpr(end % 8){                 // write the last bits not making a complete byte
-					*(--b0) |= (uint8_t(x) << (8 - end % 8));
+				auto b0 = buf + (end + 7)/8; // end of the next byte to write
+				if constexpr(end%8){         // write the last bits not making a complete byte
+					*(--b0) |= (uint8_t(x) << (8 - end%8));
 					x >>= end % 8;
 				}
 		
-				constexpr auto byteend = end & ~7u;                // end of the next write aligned at byte boundary
-				for(auto i = (byteend - begin) / 8u; i != 0; --i){ // write complete bytes
+				constexpr auto byteend = end & ~7u;              // end of the next write aligned at byte boundary
+				for(auto i = (byteend - begin)/8u; i != 0; --i){ // write complete bytes
 					*(--b0) |= uint8_t(x);
 					x >>= 8;
 				}
 		
-				if constexpr (begin % 8){ // begin is not aligned at byte boundary
+				if constexpr(begin%8){ // begin is not aligned at byte boundary
 					*(--b0) |= uint8_t(x);
 				}
 			}
 		}
 		
-		/// write value to the bitfield
+		/// Write value to the bits range. 
+		/// For incomplete byte write is equivalent to |= after zeroing the target bits first.
 		auto operator= (Res x)-> void {
-			assert(x <= (Res(-1) >> (8 * sizeof(Res) - (end - begin)))); // number fits into designated bits
+			assert(x <= (Res(-1) >> (8*sizeof(Res) - (end - begin)))); // number fits into designated bits
 			if constexpr(samebyte<begin, end>()){ // begin and end are in the same byte
-				constexpr auto mask = (255u << (8 - begin%8)) & (255u >> (8 - end%8));
-				buf[begin / 8] |= (uint8_t(x) << (8 - end%8)) & mask;
+				buf[begin/8] &= (255u << (8 - begin%8)) | (255u >> end%8);
+				buf[begin/8] |= uint8_t(x) << (8 - end%8);
 			} else {
-				auto b0 = buf + (end + 7) / 8; // end of the next byte to write
-				if constexpr(end % 8){                 // write the last bits not making a complete byte
-					constexpr auto mask = 0;
-					*(--b0) |= (uint8_t(x) << (8 - end % 8));
-					x >>= end % 8;
+				auto b0 = buf + (end + 7)/8; // end of the next byte to write
+				if constexpr(end%8){         // write the last bits not making a complete byte
+					*(--b0) &= 255u >> end%8;
+					*b0 |= uint8_t(x) << (8 - end%8);
+					x >>= end%8;
 				}
 		
-				constexpr auto byteend = end & ~7u;                // end of the next write aligned at byte boundary
-				for(auto i = (byteend - begin) / 8u; i != 0; --i){ // write complete bytes
+				constexpr auto byteend = end & ~7u;              // end of the next write aligned at byte boundary
+				for(auto i = (byteend - begin)/8u; i != 0; --i){ // write complete bytes
 					*(--b0) = uint8_t(x);
 					x >>= 8;
 				}
-		
-				if constexpr (begin % 8){ // begin is not aligned at byte boundary
-					constexpr auto mask = 0;
-					*(--b0) |= uint8_t(x);
+				
+				if constexpr(begin%8){ // begin is not aligned at byte boundary
+					*(--b0) &= 255u << (8 - begin%8);
+					*b0 |= uint8_t(x);
 				}
 			}
 		}
