@@ -24,24 +24,26 @@ namespace detail {
 	template<uint8_t begin, uint8_t end>
 	constexpr auto samebyte()-> bool { return begin/8u == end/8u; }
 	
+	// write complete bytes to byte array
 	template<class Buf, class T, uint8_t times, bool shift_last>
-	auto write_end_aligned(Buf& buf, T& x){
+	auto write_complete_bytes(Buf& buf, T& x){
 		if constexpr(times > 0){
 			*(--buf) = uint8_t(x);
 			if constexpr(times > 1){
-				write_end_aligned<Buf, T, times - 1, shift_last>(buf, x >>= 8);
+				write_complete_bytes<Buf, T, times - 1, shift_last>(buf, x >>= 8);
 			} else if constexpr(shift_last){
 				x >>= 8;
 			}
 		} 
 	}
 	
+	// |= complete bytes to byte array
 	template<class Buf, class T, uint8_t times, bool shift_last>
-	auto or_end_aligned(Buf& buf, T& x){
+	auto or_complete_bytes(Buf& buf, T& x){
 		if constexpr(times > 0){
 			*(--buf) |= uint8_t(x);
 			if constexpr(times > 1){
-				write_end_aligned<Buf, T, times - 1, shift_last>(buf, x >>= 8);
+				or_complete_bytes<Buf, T, times - 1, shift_last>(buf, x >>= 8);
 			} else if constexpr(shift_last){
 				x >>= 8;
 			}
@@ -91,7 +93,7 @@ namespace detail {
 				}
 		
 				constexpr auto completebytes = ((end & ~7u) - begin)/8u;
-				or_end_aligned<Buf, Res, completebytes, begin%8 != 0>(b0, x);
+				or_complete_bytes<Buf, Res, completebytes, begin%8 != 0>(b0, x);
 		
 				if constexpr(begin%8 != 0){ // begin is not aligned at byte boundary
 					*(--b0) |= uint8_t(x);
@@ -115,7 +117,7 @@ namespace detail {
 				}
 		
 				constexpr auto completebytes = ((end & ~7u) - begin)/8u;
-				write_end_aligned<Buf, Res, completebytes, begin%8 != 0>(b0, x);
+				write_complete_bytes<Buf, Res, completebytes, begin%8 != 0>(b0, x);
 				
 				if constexpr(begin%8 != 0){ // begin is not aligned at byte boundary
 					*(--b0) &= 255u << (8 - begin%8);
