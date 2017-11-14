@@ -1,10 +1,7 @@
 #pragma once
 
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
-
-#include <iostream> // debug
 
 namespace detail {
 	template<uint8_t val>
