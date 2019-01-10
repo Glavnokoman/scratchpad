@@ -1,8 +1,6 @@
 # About
-Bunch of snippets and small experiments
-
 `src/bufbuf.hpp`
-Thread-safe multiple-producer-single-consumer pop-the-last circular buffer.
+Thread-safe multiple-producer-single-consumer "postbox" buffer.
 
 `src/bitpack.hpp`
 portable bitfield with read/write in big-endian (network) order
