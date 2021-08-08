@@ -1,7 +1,7 @@
 #include <bitpack.hpp>
 
 #define CATCH_CONFIG_RUNNER
-#include "catch/catch.hpp"
+#include "catch2/catch.hpp"
 
 namespace {
 	struct H {

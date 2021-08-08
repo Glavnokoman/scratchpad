@@ -1,4 +1,3 @@
-
 FILE(GLOB_RECURSE HeaderFiles "*.hpp" "*.h")
 add_custom_target(headers SOURCES ${HeaderFiles})
 
@@ -18,3 +17,6 @@ add_executable(ipc_unix_sockets ipc_unix_sockets.cpp)
 
 add_executable(tmpl_params_deduction constructor_tmpl_param_deduction.cpp)
 target_compile_features(tmpl_params_deduction PRIVATE cxx_std_17)
+
+add_executable(bos book-of-semaphores.cpp)
+target_compile_features(bos PRIVATE cxx_std_20)

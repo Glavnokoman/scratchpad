@@ -4,7 +4,7 @@ if(NOT CPP_PLAYGROUND_BUILD_TESTS)
    return()
 endif()
 
-find_package(Catch REQUIRED)
+find_package(Catch2 REQUIRED)
 
 function(add_catch_test arg_test_name arg_test_src)
 	add_executable(${arg_test_name} ${arg_test_src})
